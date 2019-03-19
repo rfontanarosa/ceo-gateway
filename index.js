@@ -1,13 +1,14 @@
 var express = require('express');
 var request = require('request');
+var urljoin = require('url-join');
 
 var config = require('./config');
 
 var app = express();
 
-app.get('/', function (req, res) {
+app.get('/login', function (req, res) {
   request.post({
-    url: config.ceo.url + '/login',
+    url: urljoin(config.ceo.url, '/login'),
     form: {
       email: config.ceo.username,
       password: config.ceo.password,
@@ -17,13 +18,13 @@ app.get('/', function (req, res) {
       headers: {
         Cookie: response.headers['set-cookie'],
       },
-      url: config.ceo.url + '/account/1',
+      url: urljoin(config.ceo.url, 'account', config.ceo.institutionId),
       followRedirect: false
     }, function(error, response1, body) {
       console.log(response1.statusCode);
     });
   });
-  res.send('Hello World!');
+  res.send(200);
 });
 
 app.listen(3000, function () {
