@@ -1,6 +1,7 @@
 var express = require('express');
 var request = require('request');
 var urljoin = require('url-join');
+var randomColor = require('randomcolor');
 
 var config = require('./config');
 
@@ -31,43 +32,62 @@ app.get('/login', function (req, res) {
 
 app.post('/create-project', function (req, res) {
 
-  const buff = req.body.plots.reduce((acc, curr, i) => {
+  const plots = req.body.plots.reduce((acc, curr, i) => {
     return `${acc}\n${curr.lon},${curr.lat},${i+1}`;
   }, 'LON,LAT,PLOTID');
 
-  const formData = {
-    institution: config.ceo.institutionId,
-    'privacy-level': 'private',
-    'lon-min': '',
-    'lon-max': '',
-    'lat-min': '',
-    'lat-max': '',
-    'base-map-source': 'DigitalGlobeRecentImagery',
-    'plot-distribution': 'csv',
-    'num-plots': '',
-    'plot-spacing': '',
-    'plot-shape': 'square',
-    'plot-size:': req.body.plotSize,
-    'sample-distribution': 'gridded',
-    'samples-per-plot': '1',
-    'sample-resolution': '',
-    'sample-values': '[{"id":1,"question":"CLASS","answers":[{"id":1,"answer":"FOREST","color":"#00ff00"},{"id":2,"answer":"WATER","color":"#0000ff"}, {"id":3,"answer":"OTHER","color":"#ffff"}],"parentQuestion":-1,"parentAnswer":-1,"dataType":"text","componentType":"button"}]',
-    'survey-rules': '',
-    'project-template': '0',
-    'use-template-plots': '',
-    name: req.body.title,
-    description: req.body.title,
-    'plot-distribution-csv-file': {
-      value: Buffer(buff),
-      options: {
-        filename:'buff.csv'
+  const colors = randomColor({
+    count: req.body.classes.length,
+    hue: 'random'
+  });
+
+  const sampleValues = [{
+    id: 1,
+    question: "CLASS",
+    answers: req.body.classes.map(function(currentValue, index) {
+      return {
+        id: index + 1,
+        answer: currentValue,
+        color: colors[index]
       }
-    },
+    }),
+    parentQuestion: -1,
+    parentAnswer: -1,
+    dataType: 'text',
+    componentType: 'button'
+  }];
+
+  const data = {
+    baseMapSource: 'DigitalGlobeRecentImagery',
+    description: req.body.title,
+    institution: config.ceo.institutionId,
+    lonMin: '',
+    lonMax: '',
+    latMin: '',
+    latMax: '',
+    name: req.body.title,
+    numPlots: '',
+    plotDistribution: 'csv',
+    plotShape: 'square',
+    plotSize: req.body.plotSize,
+    plotSpacing: '',
+    privacyLevel: 'private',
+    projectTemplate: '0',
+    sampleDistribution: 'gridded',
+    samplesPerPlot: '1',
+    sampleResolution: '30',
+    sampleValues: sampleValues,
+    surveyRules: [],
+    useTemplatePlots: '',
+    plotFileName: 'plots.csv',
+    plotFileBase64: ',' + Buffer.from(plots).toString('base64'),
+    sampleFileName: '',
+    sampleFileBase64: '',
   };
 
   request.post({
     url: urljoin(config.ceo.url, 'create-project'),
-    formData: formData
+    json: data
   }, function(error, response, body) {
     console.log(response.statusCode);
   });
