@@ -75,7 +75,7 @@ app.post('/create-project', function (req, res) {
     projectTemplate: '0',
     sampleDistribution: 'gridded',
     samplesPerPlot: '1',
-    sampleResolution: '30',
+    sampleResolution: '',
     sampleValues: sampleValues,
     surveyRules: [],
     useTemplatePlots: '',
