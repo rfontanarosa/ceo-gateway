@@ -2,6 +2,7 @@ var express = require('express');
 var request = require('request');
 var urljoin = require('url-join');
 var randomColor = require('randomcolor');
+var geolib = require('geolib');
 
 var config = require('./config');
 
@@ -36,6 +37,8 @@ app.post('/create-project', function (req, res) {
     return `${acc}\n${curr.lon},${curr.lat},${i+1}`;
   }, 'LON,LAT,PLOTID');
 
+  const bounds = geolib.getBounds(req.body.plots);
+
   const colors = randomColor({
     count: req.body.classes.length,
     hue: 'random'
@@ -61,10 +64,10 @@ app.post('/create-project', function (req, res) {
     baseMapSource: 'DigitalGlobeRecentImagery',
     description: req.body.title,
     institution: config.ceo.institutionId,
-    lonMin: '',
-    lonMax: '',
-    latMin: '',
-    latMax: '',
+    lonMin: bounds.minLng,
+    lonMax: bounds.maxLng,
+    latMin: bounds.minLat,
+    latMax: bounds.maxLat,
     name: req.body.title,
     numPlots: '',
     plotDistribution: 'csv',
