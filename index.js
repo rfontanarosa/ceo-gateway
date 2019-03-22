@@ -4,6 +4,7 @@ var urljoin = require('url-join');
 var randomColor = require('randomcolor');
 
 var config = require('./config');
+var { base64ShapeFromPlots } = require('./utils');
 
 var app = express();
 
@@ -57,6 +58,8 @@ app.post('/create-project', function (req, res) {
     componentType: 'button'
   }];
 
+  const shapeFile = base64ShapeFromPlots(req.body.plotSize, req.body.plots);
+
   const data = {
     baseMapSource: 'DigitalGlobeRecentImagery',
     description: req.body.title,
@@ -67,22 +70,22 @@ app.post('/create-project', function (req, res) {
     latMax: '',
     name: req.body.title,
     numPlots: '',
-    plotDistribution: 'csv',
-    plotShape: 'square',
-    plotSize: req.body.plotSize,
+    plotDistribution: 'shp',
+    plotShape: '',
+    plotSize: '',
     plotSpacing: '',
     privacyLevel: 'private',
     projectTemplate: '0',
-    sampleDistribution: 'gridded',
-    samplesPerPlot: '1',
+    sampleDistribution: 'shp',
+    samplesPerPlot: '',
     sampleResolution: '',
     sampleValues: sampleValues,
     surveyRules: [],
     useTemplatePlots: '',
-    plotFileName: 'plots.csv',
-    plotFileBase64: ',' + Buffer.from(plots).toString('base64'),
-    sampleFileName: '',
-    sampleFileBase64: '',
+    plotFileName: 'plots.zip',
+    plotFileBase64: ',' + shapeFile,
+    sampleFileName: 'plots.zip',
+    sampleFileBase64: ',' + shapeFile,
   };
 
   request.post({
