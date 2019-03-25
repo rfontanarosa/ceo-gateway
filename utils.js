@@ -4,7 +4,6 @@ const shell = require('shelljs');
 const uuidv4 = require('uuid/v4');
 
 const base64ShapeFromPlots = (plotSize, plots) => {
-
   const dist = turfHelpers.lengthToDegrees(parseFloat(plotSize)/2, 'meters');
   const polygons = plots.map((curr, i) => {
     const lat = parseFloat(curr.lat);
@@ -14,7 +13,7 @@ const base64ShapeFromPlots = (plotSize, plots) => {
       [lon + dist, lat + dist],
       [lon + dist, lat - dist],
       [lon - dist, lat - dist]];
-    return turfHelpers.polygon([square], { PLOTID: i, SAMPLEID: i });
+    return turfHelpers.polygon([square], {PLOTID: i, SAMPLEID: i});
   });
 
   const polyFC = turfHelpers.featureCollection(polygons);
@@ -26,7 +25,8 @@ const base64ShapeFromPlots = (plotSize, plots) => {
   if (!shell.which('ogr2ogr')) {
     throw new Error('ogr2ogr is not installed!');
   } else {
-    if (shell.exec(`ogr2ogr -f "ESRI Shapefile" ${tempName} ${tempName}.json`).code !== 0) {
+    const command = `ogr2ogr -f "ESRI Shapefile" ${tempName} ${tempName}.json`;
+    if (shell.exec(command).code !== 0) {
       console.log('ERR2');
     } else {
       shell.cd(tempName);
@@ -37,10 +37,9 @@ const base64ShapeFromPlots = (plotSize, plots) => {
 
   fs.unlinkSync(`${tempName}.json`);
 
-  var shapeFile = fs.readFileSync(`./${tempName}/OGRGeoJSON.zip`);
+  const shapeFile = fs.readFileSync(`./${tempName}/OGRGeoJSON.zip`);
 
   return Buffer.from(shapeFile).toString('base64');
+};
 
-}
-
-module.exports = { base64ShapeFromPlots };
+module.exports = {base64ShapeFromPlots};

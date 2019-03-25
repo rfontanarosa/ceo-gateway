@@ -1,74 +1,75 @@
-var express = require('express');
-var request = require('request');
-var urljoin = require('url-join');
-var randomColor = require('randomcolor');
+const express = require('express');
+const request = require('request');
+const urljoin = require('url-join');
+const randomColor = require('randomcolor');
 
-var config = require('./config');
-var { base64ShapeFromPlots } = require('./utils');
+const turfHelpers = require('@turf/helpers');
 
-var app = express();
+const config = require('./config');
+const {base64ShapeFromPlots} = require('./utils');
+
+const app = express();
 
 app.use(express.json());
 
-app.get('/login', function (req, res) {
+app.get('/login', function(req, res) {
+  const {url, username, password, institutionId} = config.ceo;
   request.post({
-    url: urljoin(config.ceo.url, '/login'),
+    url: urljoin(url, '/login'),
     form: {
-      email: config.ceo.username,
-      password: config.ceo.password,
-    }
+      email: username,
+      password: password,
+    },
   }, function(error, response, body) {
     request.get({
       headers: {
         Cookie: response.headers['set-cookie'],
       },
-      url: urljoin(config.ceo.url, 'account', config.ceo.institutionId),
-      followRedirect: false
+      url: urljoin(url, 'account', institutionId),
+      followRedirect: false,
     }, function(error, response1, body) {
       console.log(response1.statusCode);
     });
   });
-  res.send(200);
+  res.sendStatus(200);
 });
 
-app.post('/create-project', function (req, res) {
-
-  const plots = req.body.plots.reduce((acc, curr, i) => {
-    return `${acc}\n${curr.lon},${curr.lat},${i+1}`;
-  }, 'LON,LAT,PLOTID');
+app.post('/create-project', function(req, res) {
+  const {url, institutionId} = config.ceo;
+  const {classes, plotSize, plots, title} = req.body;
 
   const colors = randomColor({
-    count: req.body.classes.length,
-    hue: 'random'
+    count: classes.length,
+    hue: 'random',
   });
 
   const sampleValues = [{
     id: 1,
-    question: "CLASS",
-    answers: req.body.classes.map(function(currentValue, index) {
+    question: 'CLASS',
+    answers: classes.map(function(currentValue, index) {
       return {
         id: index + 1,
         answer: currentValue,
-        color: colors[index]
-      }
+        color: colors[index],
+      };
     }),
     parentQuestion: -1,
     parentAnswer: -1,
     dataType: 'text',
-    componentType: 'button'
+    componentType: 'button',
   }];
 
-  const shapeFile = base64ShapeFromPlots(req.body.plotSize, req.body.plots);
+  const shapeFile = base64ShapeFromPlots(plotSize, plots);
 
   const data = {
     baseMapSource: 'DigitalGlobeRecentImagery',
-    description: req.body.title,
-    institution: config.ceo.institutionId,
+    description: title,
+    institution: institutionId,
     lonMin: '',
     lonMax: '',
     latMin: '',
     latMax: '',
-    name: req.body.title,
+    name: title,
     numPlots: '',
     plotDistribution: 'shp',
     plotShape: '',
@@ -89,16 +90,15 @@ app.post('/create-project', function (req, res) {
   };
 
   request.post({
-    url: urljoin(config.ceo.url, 'create-project'),
-    json: data
+    url: urljoin(url, 'create-project'),
+    json: data,
   }, function(error, response, body) {
     console.log(response.statusCode);
   });
 
   res.send(200);
-
 });
 
-app.listen(3000, function () {
+app.listen(3000, function() {
   console.log('Example app listening on port 3000!');
 });
