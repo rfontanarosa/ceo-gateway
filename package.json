@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "NODE_TLS_REJECT_UNAUTHORIZED=0 node index.js"
+    "start": "NODE_TLS_REJECT_UNAUTHORIZED=0 node index.js",
+    "start_windows": "set NODE_TLS_REJECT_UNAUTHORIZED=0&&node index.js"
   },
   "author": "",
   "license": "ISC",
