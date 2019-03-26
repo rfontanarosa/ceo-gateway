@@ -36,6 +36,10 @@ app.post('/create-project', function(req, res) {
   const {url, institutionId} = config.ceo;
   const {classes, plotSize, plots, title} = req.body;
 
+  const plotFile = plots.reduce((acc, curr, i) => {
+    return `${acc}\n${curr.lon},${curr.lat},${i+1}`;
+  }, 'LON,LAT,PLOTID');
+
   const colors = randomColor({
     count: classes.length,
     hue: 'random',
@@ -57,8 +61,6 @@ app.post('/create-project', function(req, res) {
     componentType: 'button',
   }];
 
-  const shapeFile = base64ShapeFromPlots(plotSize, plots);
-
   const data = {
     baseMapSource: 'DigitalGlobeRecentImagery',
     description: title,
@@ -69,22 +71,22 @@ app.post('/create-project', function(req, res) {
     latMax: '',
     name: title,
     numPlots: '',
-    plotDistribution: 'shp',
-    plotShape: '',
-    plotSize: '',
+    plotDistribution: 'csv',
+    plotShape: 'square',
+    plotSize: plotSize,
     plotSpacing: '',
     privacyLevel: 'private',
     projectTemplate: '0',
-    sampleDistribution: 'shp',
+    sampleDistribution: 'gridded',
     samplesPerPlot: '',
-    sampleResolution: '',
+    sampleResolution: plotSize,
     sampleValues: sampleValues,
     surveyRules: [],
     useTemplatePlots: '',
     plotFileName: 'plots.zip',
-    plotFileBase64: ',' + shapeFile,
-    sampleFileName: 'plots.zip',
-    sampleFileBase64: ',' + shapeFile,
+    plotFileBase64: ',' + Buffer.from(plotFile).toString('base64'),
+    sampleFileName: '',
+    sampleFileBase64: '',
   };
 
   request.post({
