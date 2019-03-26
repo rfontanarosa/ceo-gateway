@@ -4,13 +4,17 @@ const urljoin = require('url-join');
 const randomColor = require('randomcolor');
 
 const config = require('./config');
-const {base64ShapeFromPlots} = require('./utils');
 
 const app = express();
 
 app.use(express.json());
 
-app.get('/login', function(req, res) {
+app.use(function(err, req, res, next) {
+  console.error(err.stack);
+  res.status(500).send('Something went wrong!!');
+});
+
+app.get('/login', function(req, res, next) {
   const {url, username, password, institutionId} = config.ceo;
   request.post({
     url: urljoin(url, 'login'),
@@ -18,18 +22,22 @@ app.get('/login', function(req, res) {
       email: username,
       password: password,
     },
-  }, function(error, response, body) {
+  }).on('response', (response) => {
     request.get({
       headers: {
         Cookie: response.headers['set-cookie'],
       },
       url: urljoin(url, 'account', institutionId),
       followRedirect: false,
-    }, function(error, response1, body) {
-      console.log(response1.statusCode);
+    }).on('response', (response) => {
+      const {statusCode} = response;
+      res.sendStatus(statusCode !== 302 ? 200 : 403);
+    }).on('error', (err) => {
+      next(err);
     });
+  }).on('error', (err) => {
+    next(err);
   });
-  res.sendStatus(200);
 });
 
 app.post('/create-project', function(req, res) {
@@ -120,7 +128,7 @@ app.get('/get-collected-data/:id', function(req, res) {
       const ret = lines.slice(1).reduce((acc, cur) => {
         const values = cur.split(',');
         const answer = values[qIndex];
-        return acc += `${values[0]},${values[2]},${values[3]},${answers[answer]}\n`;
+        return `${acc}\n${values[0]},${values[2]},${values[3]},${answers[answer]}`;
       }, 'id,YCoordinate,XCoordinate,class\n');
       res.send(ret);
     }).on('error', function(err) {
