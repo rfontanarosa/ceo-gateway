@@ -97,6 +97,38 @@ app.post('/create-project', function(req, res) {
   res.send(200);
 });
 
+app.get('/get-collected-data/:id', function(req, res) {
+  const {url} = config.ceo;
+  const {id} = req.params;
+  request.get({
+    url: urljoin(url, 'get-project-by-id', id),
+  }).on('data', function(data) {
+    const project = JSON.parse(data);
+    const {sampleValues} = project;
+    const question = sampleValues[0].question;
+    const answers = sampleValues[0].answers.reduce((acc, cur) => {
+      acc[cur.answer] = cur.id;
+      return acc;
+    }, {});
+    request.get({
+      url: urljoin(url, 'dump-project-raw-data', id),
+    }).on('data', function(data) {
+      const lines = data.toString().split('\n');
+      const qIndex = lines[0].split(',').findIndex((ele) => ele === question.toUpperCase());
+      const ret = lines.slice(1).reduce((acc, cur) => {
+        const values = cur.split(',');
+        const answer = values[qIndex];
+        return acc += `${values[0]},${values[2]},${values[3]},${answers[answer]}\n`;
+      }, 'id,YCoordinate,XCoordinate,class\n');
+      res.send(ret);
+    }).on('error', function(err) {
+      next(err);
+    });
+  }).on('error', function(err) {
+    next(err);
+  });
+});
+
 app.listen(3000, function() {
   console.log('Example app listening on port 3000!');
 });
