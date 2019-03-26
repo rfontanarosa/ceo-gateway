@@ -3,8 +3,6 @@ const request = require('request');
 const urljoin = require('url-join');
 const randomColor = require('randomcolor');
 
-const turfHelpers = require('@turf/helpers');
-
 const config = require('./config');
 const {base64ShapeFromPlots} = require('./utils');
 
@@ -15,7 +13,7 @@ app.use(express.json());
 app.get('/login', function(req, res) {
   const {url, username, password, institutionId} = config.ceo;
   request.post({
-    url: urljoin(url, '/login'),
+    url: urljoin(url, 'login'),
     form: {
       email: username,
       password: password,
