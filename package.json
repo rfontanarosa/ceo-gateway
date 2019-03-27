@@ -7,8 +7,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 node index.js"
   },
-  "author": "",
-  "license": "ISC",
+  "author": {
+    "name": "Roberto Fontanarosa",
+    "email": "roberto.fontanarosa@fao.org"
+  },
+  "license": "MIT",
   "dependencies": {
     "express": "^4.16.4",
     "randomcolor": "^0.5.4",

@@ -9,12 +9,12 @@ const app = express();
 
 app.use(express.json());
 
-app.use(function(err, req, res, next) {
+app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).send('Something went wrong!!');
 });
 
-app.get('/login', function(req, res, next) {
+app.get('/login', (req, res, next) => {
   const {url, username, password, institutionId} = config.ceo;
   request.post({
     url: urljoin(url, 'login'),
@@ -40,19 +40,16 @@ app.get('/login', function(req, res, next) {
   });
 });
 
-app.post('/create-project', function(req, res) {
+app.post('/create-project', (req, res, next) => {
   const {url, institutionId} = config.ceo;
   const {classes, plotSize, plots, title} = req.body;
-
   const plotFile = plots.reduce((acc, curr, i) => {
     return `${acc}\n${curr.lon},${curr.lat},${i+1}`;
   }, 'LON,LAT,PLOTID');
-
   const colors = randomColor({
     count: classes.length,
     hue: 'random',
   });
-
   const sampleValues = [{
     id: 1,
     question: 'CLASS',
@@ -68,7 +65,6 @@ app.post('/create-project', function(req, res) {
     dataType: 'text',
     componentType: 'button',
   }];
-
   const data = {
     baseMapSource: 'DigitalGlobeRecentImagery',
     description: title,
@@ -96,27 +92,26 @@ app.post('/create-project', function(req, res) {
     sampleFileName: '',
     sampleFileBase64: '',
   };
-
   request.post({
     url: urljoin(url, 'create-project'),
     json: data,
-  }, function(error, response, body) {
-    console.log(response.statusCode);
+  }).on('response', (response) => {
+    res.sendStatus(200);
+  }).on('error', (err) => {
+    next(err);
   });
-
-  res.send(200);
 });
 
-app.get('/get-collected-data/:id', function(req, res) {
+app.get('/get-collected-data/:id', (req, res, next) => {
   const {url} = config.ceo;
   const {id} = req.params;
   request.get({
     url: urljoin(url, 'get-project-by-id', id),
   }).on('data', function(data) {
     const project = JSON.parse(data);
-    const {sampleValues} = project;
-    const question = sampleValues[0].question;
-    const answers = sampleValues[0].answers.reduce((acc, cur) => {
+    const [sampleValue] = project.sampleValues;
+    const question = sampleValue.question;
+    const answers = sampleValue.answers.reduce((acc, cur) => {
       acc[cur.answer] = cur.id;
       return acc;
     }, {});
@@ -124,17 +119,20 @@ app.get('/get-collected-data/:id', function(req, res) {
       url: urljoin(url, 'dump-project-raw-data', id),
     }).on('data', function(data) {
       const lines = data.toString().split('\n');
-      const qIndex = lines[0].split(',').findIndex((ele) => ele === question.toUpperCase());
+      const header = lines[0].split(',');
+      const qIndex = header.findIndex((ele) => ele === question.toUpperCase());
       const ret = lines.slice(1).reduce((acc, cur) => {
         const values = cur.split(',');
+        const [id, , yCoord, xCoord] = values;
         const answer = values[qIndex];
-        return `${acc}\n${values[0]},${values[2]},${values[3]},${answers[answer]}`;
+        const answerId = answers[answer];
+        return `${acc}\n${id},${yCoord},${xCoord},${answerId}`;
       }, 'id,YCoordinate,XCoordinate,class\n');
       res.send(ret);
-    }).on('error', function(err) {
+    }).on('error', (err) => {
       next(err);
     });
-  }).on('error', function(err) {
+  }).on('error', (err) => {
     next(err);
   });
 });
