@@ -95,8 +95,12 @@ app.post('/create-project', (req, res, next) => {
     request.post({
         url: urljoin(url, 'create-project'),
         json: data,
-    }).on('response', () => {
-        res.send(200)
+    }).on('response', response => {
+        response.on('data', data => {
+            const projectId = data.toString()
+            const collectionUrl = urljoin(url, 'collection', projectId)
+            res.send(collectionUrl)
+        })
     }).on('error', err => {
         next(err)
     })
