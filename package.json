@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 node index.js"
+    "start": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 node index.js",
+    "dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 nodemon index.js"
   },
   "author": {
     "name": "Roberto Fontanarosa",
@@ -23,6 +24,7 @@
     "cross-env": "^5.2.0",
     "eslint": "^5.15.3",
     "eslint-plugin-react": "^7.12.4",
-    "eslint-plugin-sort-imports-es6-autofix": "^0.4.0"
+    "eslint-plugin-sort-imports-es6-autofix": "^0.4.0",
+    "nodemon": "^1.18.10"
   }
 }
