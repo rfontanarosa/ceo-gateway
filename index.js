@@ -129,9 +129,9 @@ app.get('/get-collected-data/:id', (req, res, next) => {
                 const values = cur.split(',')
                 const [id, , yCoord, xCoord] = values
                 const answer = values[qIndex]
-                const answerId = answers[answer]
+                const answerId = answers[answer] || ''
                 return `${acc}\n${id},${yCoord},${xCoord},${answerId}`
-            }, 'id,YCoordinate,XCoordinate,class\n')
+            }, 'id,YCoordinate,XCoordinate,class')
             res.send(ret)
         }).on('error', err => {
             next(err)
