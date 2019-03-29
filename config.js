@@ -2,9 +2,9 @@ var config = {}
 
 config.ceo = {}
 
-config.ceo.url = 'https://127.0.0.1:8080'
-config.ceo.username = 'admin@openforis.org'
-config.ceo.password = 'admin'
-config.ceo.institutionId = '1'
+config.ceo.url = process.env.CEO_URL || 'https://127.0.0.1:8080'
+config.ceo.username = process.env.CEO_USERNAME || 'admin@openforis.org'
+config.ceo.password = process.env.CEO_PASSWORD || ''
+config.ceo.institutionId = process.env.CEO_INSTITUTION_ID || '1'
 
 module.exports = config

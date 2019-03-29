@@ -141,6 +141,8 @@ app.get('/get-collected-data/:id', (req, res, next) => {
     })
 })
 
-app.listen(3000, function() {
-    console.info('Example app listening on port 3000!')
+const PORT = process.env.PORT || 3000
+
+app.listen(PORT, function() {
+    console.info(`App listening on port ${PORT}!`)
 })
