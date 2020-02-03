@@ -1,4 +1,5 @@
 const express = require('express')
+const session = require('express-session')
 const request = require('request')
 const urljoin = require('url-join')
 const randomColor = require('randomcolor')
@@ -7,31 +8,39 @@ const config = require('./config')
 
 const app = express()
 
+app.use(session({
+    secret: '343ji43j4n3jn4jk3n',
+    resave: false,
+    saveUninitialized: true
+}))
+
 app.use(express.json())
 
-app.use((err, req, res, next) => {
-    console.info(err.stack)
-    res.status(500).send('Something went wrong!!')
-})
-
-app.get('/login', (req, res, next) => {
-    const {url, username, password, institutionId} = config.ceo
+app.use(['/login', '/create-project', '/get-collected-data'], (req, res, next) => {
+    const {url, username, password, userId} = config.ceo
     request.post({
         url: urljoin(url, 'login'),
         form: {
             email: username,
-            password: password,
+            password,
         },
     }).on('response', response => {
+        const cookie = response.headers['set-cookie']
+        req.session.cookie = cookie
         request.get({
             headers: {
-                Cookie: response.headers['set-cookie'],
+                Cookie: cookie,
             },
-            url: urljoin(url, 'account', institutionId),
+            url: urljoin(url, 'account'),
+            qs: {
+                userId
+            },
             followRedirect: false,
         }).on('response', response => {
             const {statusCode} = response
-            res.sendStatus(statusCode !== 302 ? 200 : 403)
+            req.loginStatusCode = statusCode !== 302 ? 200 : 403
+            req.isLogged = statusCode !== 302 ? true : false
+            next()
         }).on('error', err => {
             next(err)
         })
@@ -40,9 +49,22 @@ app.get('/login', (req, res, next) => {
     })
 })
 
+app.get('/login', (req, res, next) => {
+    res.sendStatus(req.loginStatusCode)
+})
+
 app.post('/create-project', (req, res, next) => {
+    const {isLogged} = req
+    if (!isLogged) res.status(500).send({error: 'Login failed!'})
+    const {cookie} = req.session
     const {url, institutionId} = config.ceo
     const {classes, plotSize, plots, title} = req.body
+    if (!Array.isArray(classes) || classes.length === 0
+        || typeof plotSize !== 'number' || plotSize < 0
+        || !Array.isArray(plots) || plots.length === 0
+        || typeof title !== 'string' || title.trim() === '') {
+        return res.status(400).send('Bad Request')
+    }
     const plotFile = plots.reduce((acc, curr, i) => {
         return `${acc}\n${curr.lon},${curr.lat},${i+1}`
     }, 'LON,LAT,PLOTID')
@@ -68,7 +90,7 @@ app.post('/create-project', (req, res, next) => {
     const data = {
         baseMapSource: 'DigitalGlobeRecentImagery',
         description: title,
-        institution: institutionId,
+        institutionId,
         lonMin: '',
         lonMax: '',
         latMin: '',
@@ -87,19 +109,54 @@ app.post('/create-project', (req, res, next) => {
         sampleValues: sampleValues,
         surveyRules: [],
         useTemplatePlots: '',
-        plotFileName: 'plots.zip',
+        useTemplateWidgets: '',
+        plotFileName: 'plots.csv',
         plotFileBase64: ',' + Buffer.from(plotFile).toString('base64'),
         sampleFileName: '',
         sampleFileBase64: '',
     }
     request.post({
+        headers: {
+            Cookie: cookie['0'],
+        },
         url: urljoin(url, 'create-project'),
+        qs: {
+            institutionId,
+        },
         json: data,
     }).on('response', response => {
+        const {statusCode} = response
+        if (statusCode !== 200) return res.sendStatus(statusCode)
         response.on('data', data => {
-            const projectId = data.toString()
-            const collectionUrl = urljoin(url, 'collection', projectId)
-            res.send(collectionUrl)
+            const jsonObject = JSON.parse(data)
+            const {projectId, tokenKey, errorMessage} = jsonObject
+            const isInteger = n => !isNaN(parseInt(n)) && isFinite(n) && !n.includes('.')
+            if (!isInteger(projectId)) {
+                res.status(400).send({
+                    projectId: 0,
+                    ceoCollectionUrl: '',
+                    errorMessage,
+                })
+            } else {
+                request.post({
+                    headers: {
+                        Cookie: cookie,
+                    },
+                    url: urljoin(url, 'publish-project'),
+                    qs: {
+                        projectId,
+                    },
+                }).on('response', response => {
+                    const ceoCollectionUrl = urljoin(url, 'collection', `?projectId=${projectId}&tokenKey=${tokenKey}`)
+                    res.send({
+                        projectId,
+                        ceoCollectionUrl,
+                        errorMessage: '',
+                    })
+                }).on('error', err => {
+                    next(err)
+                })
+            }
         })
     }).on('error', err => {
         next(err)
@@ -107,38 +164,68 @@ app.post('/create-project', (req, res, next) => {
 })
 
 app.get('/get-collected-data/:id', (req, res, next) => {
+    const {isLogged} = req
+    if (!isLogged) res.status(500).send({error: 'Login failed!'})
+    const {cookie} = req.session
     const {url} = config.ceo
     const {id} = req.params
     request.get({
-        url: urljoin(url, 'get-project-by-id', id),
-    }).on('data', function(data) {
-        const project = JSON.parse(data)
-        const [sampleValue] = project.sampleValues
-        const question = sampleValue.question
-        const answers = sampleValue.answers.reduce((acc, cur) => {
-            acc[cur.answer] = cur.id
-            return acc
-        }, {})
-        request.get({
-            url: urljoin(url, 'dump-project-raw-data', id),
-        }).on('data', function(data) {
-            const lines = data.toString().split('\n')
-            const header = lines[0].split(',')
-            const qIndex = header.findIndex(ele => ele === question.toUpperCase())
-            const ret = lines.slice(1).reduce((acc, cur) => {
-                const values = cur.split(',')
-                const [id, , yCoord, xCoord] = values
-                const answer = values[qIndex]
-                const answerId = answers[answer] || ''
-                return `${acc}\n${id},${yCoord},${xCoord},${answerId}`
-            }, 'id,YCoordinate,XCoordinate,class')
-            res.send(ret)
-        }).on('error', err => {
-            next(err)
+        headers: {
+            Cookie: cookie['0'],
+        },
+        url: urljoin(url, 'get-project-by-id'),
+        qs: {
+            projectId: id,
+        },
+    }).on('response', response => {
+        const {statusCode} = response
+        if (statusCode !== 200) return res.sendStatus(statusCode)
+        response.on('data', data => {
+            const project = JSON.parse(data.toString())
+            const [sampleValue] = project.sampleValues
+            const {question, answers} = sampleValue
+            if (!question || !answers) return res.sendStatus(500)
+            const answersById = answers.reduce((acc, cur) => {
+                acc[cur.answer] = cur.id
+                return acc
+            }, {})
+            request.get({
+                headers: {
+                    Cookie: cookie['0'],
+                },
+                url: urljoin(url, 'dump-project-raw-data'),
+                qs: {
+                    projectId: id,
+                },
+            }).on('response', response => {
+                let body = ''
+                response.on('data', data => {
+                    body += data
+                }).on('end', () => {
+                    const lines = body.toString().split('\n')
+                    const header = lines[0].split(',')
+                    const qIndex = header.findIndex(ele => ele === question.toUpperCase())
+                    const ret = lines.slice(1).reduce((acc, cur) => {
+                        const values = cur.split(',')
+                        const [id, , yCoord, xCoord] = values
+                        const answer = values[qIndex] || ''
+                        const answerId = answersById[answer] || ''
+                        return `${acc}\n${id},${yCoord},${xCoord},${answerId},${answer}`
+                    }, 'id,YCoordinate,XCoordinate,class,editedClass')
+                    res.send(ret)
+                })
+            }).on('error', err => {
+                next(err)
+            })
         })
     }).on('error', err => {
         next(err)
     })
+})
+
+app.use((err, req, res, next) => {
+    console.info(err.stack)
+    res.status(500).send('Something went wrong!')
 })
 
 const PORT = process.env.PORT || 3000
